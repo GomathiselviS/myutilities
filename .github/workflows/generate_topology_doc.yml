@@ -35,3 +35,6 @@ jobs:
         ansible-playbook -i "localhost" "${{ steps.set_playbook_filename.outputs.playbook_filename }}"
       env:
         GITHUB_TOKEN: ${{ github.event.inputs.github_token }}
+        GIT_USER_NAME: "github-actions[bot]"
+        GIT_USER_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
+        GIT_AUTHOR: "${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
