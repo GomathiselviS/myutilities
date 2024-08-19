@@ -6,7 +6,6 @@
 - name: Create a Git branch
   ansible.builtin.command:
     cmd: "git checkout -b {{ branch_name }}"
-    chdir: "{{ handbook_dir }}"
 
 - name: Scaffold topology
   ansible.builtin.include_tasks: render_topology.yaml
