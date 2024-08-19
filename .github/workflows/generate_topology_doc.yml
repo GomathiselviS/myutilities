@@ -1,0 +1,33 @@
+name: Create PR
+
+on:
+  workflow_dispatch:
+    inputs:
+      github_token:
+        description: 'GitHub Token'
+        required: true
+
+jobs:
+  create_pr:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Ansible
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.11'
+
+    - name: Install Ansible
+      run: |
+        python -m pip install --upgrade pip
+        pip install ansible
+
+    - name: Run Ansible Role to Create PR
+      run: |
+        ansible-playbook -i "localhost" ../../tools/generate_aap_cicd_topology_doc/generate_markdown.yaml
+      env:
+        GITHUB_TOKEN: ${{ github.event.inputs.github_token }}
+

@@ -1,0 +1,19 @@
+---
+- name: Set facts for topology
+  ansible.builtin.set_fact:
+    topo_file: "{{ topology_item.name + '.md'  }}"
+    topology_name: "{{ topology_item.name | regex_replace('_', ' ') }}"
+    aap_gateway: "{{ topology_item.vm_info.aap_gateway | default('NA') }}"
+    automation_controller: "{{ topology_item.vm_info.automation_controller | default('NA') }}"
+    hop_node: "{{ topology_item.vm_info.hop_node | default('NA') }}"
+    automation_hub: "{{ topology_item.vm_info.automation_hub | default('NA') }}"
+    eda: "{{ topology_item.vm_info.eda | default('NA') }}"
+    database_type: "{{ topology_item.vm_info.database_type | default('NA') }}"
+    external_db: "{{ topology_item.vm_info.external_db | default('NA') }}"
+    redis_type: "{{ topology_item.vm_info.redis_type | default('NA') }}"
+    redis_cache: "{{ topology_item.vm_info.redis_cache | default('NA') }}"
+
+- name: Generate topology markdown file
+  ansible.builtin.template:
+    src: topology.md.j2
+    dest: "{{ handbook_dir + topo_file }}"

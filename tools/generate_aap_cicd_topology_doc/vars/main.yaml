@@ -1,0 +1,15 @@
+---
+handbook_dir: "/home/gosriniv/github/UTILS/my_utilities/"
+github_token: "your github token"
+topology:
+  - name: Single_VM_installer_per_AAP_Component_RPM_A
+    vm_info:
+      aap_gateway: 1
+      automation_controller: 1
+      hop_node: 1
+      automation_hub: 1
+      eda: 1
+      database_type: "external"
+      external_db: 1
+      redis_type: "non-HA"
+      redis_cache: 1

@@ -1,0 +1,45 @@
+---
+- name: Set branch name
+  ansible.builtin.set_fact:
+    branch_name: "topo_update_{{ now(fmt='%m%d_%H%M%S') }}"
+
+- name: Create a Git branch
+  ansible.builtin.command:
+    cmd: "git checkout -b {{ branch_name }}"
+    chdir: "{{ handbook_dir }}"
+
+- name: Scaffold topology
+  ansible.builtin.include_tasks: render_topology.yaml
+  loop: "{{ topology }}"
+  loop_control:
+    loop_var: topology_item
+
+- name: Add files to the branch
+  ansible.builtin.command:
+    cmd: "git add ."
+
+- name: Commit the changes
+  ansible.builtin.command:
+    cmd: "git commit -m ' Add Topology Documentation '"
+
+- name: Create a Pull Request
+  uri:
+    url: https://api.github.com/repos/ansible/handbook/pulls
+    method: POST
+    headers:
+      Authorization: "token {{ github_token }}"
+      Accept: "application/vnd.github.v3+json"
+    body: |
+      {
+        "title": "Add Topology Document"
+        "head": "{{ branch_name }}",
+        "base": "main",
+        "body": "This PR is created by GitHub Workflow. It scaffolds topology documentation file. "
+      }
+    body_format: json
+    return_content: yes
+  register: result
+
+- debug:
+    msg: "PR created successfully with URL: {{ result.json.html_url }}"
+  when: result.status == 201

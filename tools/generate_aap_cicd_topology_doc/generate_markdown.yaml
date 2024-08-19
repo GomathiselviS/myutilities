@@ -1,0 +1,8 @@
+---
+- hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars/main.yaml
+  tasks:
+    - name: Generate Topology document
+      ansible.builtin.include_tasks: tasks/main.yaml
