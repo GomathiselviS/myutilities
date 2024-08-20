@@ -5,8 +5,6 @@
 
 - name: Set Git remote URL with token
   shell: git remote set-url origin https://{{ github_token }}@github.com/GomathiselviS/myutilities.git
-  args:
-    chdir: /path/to/your/repo
   environment:
     GIT_TERMINAL_PROMPT: 0
   register: remote_result
