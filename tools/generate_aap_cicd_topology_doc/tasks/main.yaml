@@ -28,6 +28,7 @@
     headers:
       Authorization: "token {{ github_token }}"
       Accept: "application/vnd.github.v3+json"
+      Content-Type: "application/json"
     body: |
       {
         "title": "Add Topology Document"
