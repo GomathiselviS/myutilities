@@ -7,6 +7,10 @@
   ansible.builtin.command:
     cmd: "git checkout -b {{ branch_name }}"
 
+- name: Push branch
+  ansible.builtin.command:
+    cmd: "git push origin {{ branch_name }}"
+
 - name: Scaffold topology
   ansible.builtin.include_tasks: render_topology.yaml
   loop: "{{ topology }}"
