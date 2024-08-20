@@ -4,7 +4,7 @@
     branch_name: "topo_update_{{ now(fmt='%m%d_%H%M%S') }}"
 
 - name: Set Git remote URL with token
-  shell: git remote set-url origin https://{{ token }}@github.com/GomathiselviS/myutilities.git
+  shell: git remote set-url origin https://{{ github_token }}@github.com/GomathiselviS/myutilities.git
   environment:
     GIT_TERMINAL_PROMPT: 0
   register: remote_result
@@ -16,7 +16,7 @@
 
 - name: Push branch
   ansible.builtin.command:
-    cmd: "git push https://{{ token }}@github.com/GomathiselviS/myutilities.git {{ branch_name }}"
+    cmd: "git push https://{{ github_token }}@github.com/GomathiselviS/myutilities.git {{ branch_name }}"
 
 - name: Scaffold topology
   ansible.builtin.include_tasks: render_topology.yaml
