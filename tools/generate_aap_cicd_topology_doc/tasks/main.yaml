@@ -23,7 +23,7 @@
 
 - name: Create a Pull Request
   uri:
-    url: https://api.github.com/repos/ansible/handbook/pulls
+    url: https://api.github.com/repos/GomathiselviS/myutilities/pulls
     method: POST
     headers:
       Authorization: "token {{ github_token }}"
