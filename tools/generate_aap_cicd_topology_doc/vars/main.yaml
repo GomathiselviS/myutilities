@@ -1,5 +1,5 @@
 ---
-handbook_dir: "."
+handbook_dir: ""
 github_token: "your github token"
 github_user: "Github user"
 github_email: "github email"
