@@ -6,6 +6,12 @@ on:
       github_token:
         description: 'GitHub Token'
         required: true
+      github_user:
+        description: 'GitHub User Name'
+        required: true
+      github_email:
+        description: 'GitHub User Email'
+        required: true
 
 jobs:
   create_pr:
