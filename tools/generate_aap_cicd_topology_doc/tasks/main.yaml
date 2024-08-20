@@ -3,6 +3,14 @@
   ansible.builtin.set_fact:
     branch_name: "topo_update_{{ now(fmt='%m%d_%H%M%S') }}"
 
+- name: Ensure Git is configured with the correct user name
+  ansible.builtin.command:
+    cmd: git config --global user.name "{{ github_user }}"
+
+- name: Ensure Git is configured with the correct user email
+  ansible.builtin.command:
+    cmd: git config --global user.email "{{ github_email }}"
+
 - name: Set Git remote URL with token
   shell: git remote set-url origin https://{{ github_token }}@github.com/GomathiselviS/myutilities.git
   environment:
@@ -30,7 +38,7 @@
 
 - name: Commit the changes
   ansible.builtin.command:
-    cmd: "git -c user.name={{ github_user }} -c user.email={{ github_email }} commit -m ' Add Topology Documentation '"
+    cmd: "git commit -m ' Add Topology Documentation '"
 
 - name: Create a Pull Request
   uri:
