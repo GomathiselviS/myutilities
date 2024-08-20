@@ -3,6 +3,15 @@
   ansible.builtin.set_fact:
     branch_name: "topo_update_{{ now(fmt='%m%d_%H%M%S') }}"
 
+- name: Set Git remote URL with token
+  shell: git remote set-url origin https://{{ github_token }}@github.com/GomathiselviS/myutilities.git
+  args:
+    chdir: /path/to/your/repo
+  environment:
+    GIT_TERMINAL_PROMPT: 0
+  register: remote_result
+  failed_when: remote_result.rc != 0
+
 - name: Create a Git branch
   ansible.builtin.command:
     cmd: "git checkout -b {{ branch_name }}"
