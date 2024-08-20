@@ -1,6 +1,8 @@
 ---
 handbook_dir: "."
 github_token: "your github token"
+github_user: "Github user"
+github_email: "github email"
 topology:
   - name: Single_VM_installer_per_AAP_Component_RPM_A
     vm_info:
