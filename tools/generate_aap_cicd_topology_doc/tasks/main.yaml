@@ -30,7 +30,7 @@
 
 - name: Commit the changes
   ansible.builtin.command:
-    cmd: "git commit -m ' Add Topology Documentation '"
+    cmd: "git -c user.name={{ github_user }} -c user.email={{ github_email }} commit -m ' Add Topology Documentation '"
 
 - name: Create a Pull Request
   uri:
