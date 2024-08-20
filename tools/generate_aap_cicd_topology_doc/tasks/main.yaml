@@ -26,12 +26,12 @@
     url: https://api.github.com/repos/GomathiselviS/myutilities/pulls
     method: POST
     headers:
-      Authorization: "token {{ github_token }}"
-      Accept: "application/vnd.github.v3+json"
+      Authorization: "Bearer {{ github_token }}"
+      Accept: "application/vnd.github+json"
       Content-Type: "application/json"
     body: |
       {
-        "title": "Add Topology Document"
+        "title": "Add Topology Document",
         "head": "{{ branch_name }}",
         "base": "main",
         "body": "This PR is created by GitHub Workflow. It scaffolds topology documentation file. "
