@@ -1,0 +1,4 @@
+---
+- name: Load settings from topology_information file
+  ansible.builtin.include_vars:
+    file: "{{ topology_info }}"
