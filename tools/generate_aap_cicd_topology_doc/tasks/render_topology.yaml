@@ -24,7 +24,7 @@
 - name: Generate topology markdown file
   ansible.builtin.template:
     src: topology.md.j2
-    dest: " ./{{ topo_file }}"
+    dest: "{{ playbook_dir }}/{{ topo_file }}"
 
 - name: Get the current working directory
   command: ls
