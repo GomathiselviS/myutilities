@@ -13,7 +13,8 @@ on:
         description: 'GitHub User Email'
         required: true
       vars_file:
-	description: 'path of the [vars file](https://github.com/GomathiselviS/myutilities/blob/main/tools/generate_aap_cicd_topology_doc/vars/main.yaml)'
+        description: |
+          For more information, see the [example vars file](https://github.com/GomathiselviS/myutilities/blob/main/tools/generate_aap_cicd_topology_doc/vars/main.yaml).
         required: true
 
 jobs:
