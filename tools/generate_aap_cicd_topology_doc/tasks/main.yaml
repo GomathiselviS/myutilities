@@ -26,7 +26,7 @@
 
 - name: status
   ansible.builtin.command:
-    cmd: "git status"
+    cmd: "git push --set-upstream origin {{ branch_name }}"
   register: output
 
 - debug:
