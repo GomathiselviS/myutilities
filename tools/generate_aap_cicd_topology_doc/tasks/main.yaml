@@ -26,31 +26,23 @@
 
 - name: status
   ansible.builtin.command:
-    cmd: "git push --set-upstream origin {{ branch_name }}"
-  register: output
-
-- debug:
-    var: output
-
-- name: ls
-  ansible.builtin.command:
-    cmd: "ls"
-  register: output
-
-- debug:
-    var: output
+    cmd: "git status"
+  register: status
 
 - name: Add files to the branch
   ansible.builtin.command:
     cmd: "git add ."
+  when: status.stdout != ''
 
 - name: Commit the changes
   ansible.builtin.command:
     cmd: "git -c user.name={{ github_user }} -c user.email={{ github_email }} commit . -m ' Add Topology Documentation '"
+  when: status.stdout != ''
 
 - name: Push the changes
   ansible.builtin.command:
-    cmd: "git push"
+    cmd: "git push --set-upstream origin {{ branch_name }}"
+  when: status.stdout != ''
 
 - name: Create a Pull Request
   uri:
@@ -70,7 +62,8 @@
     body_format: json
     return_content: yes
   register: result
+  when: status.stdout != ''
 
 - debug:
     msg: "PR created successfully with URL: {{ result.json.html_url }}"
-  when: result.status == 201
+  when: result.status == 201 and status.stdout != ''
