@@ -12,9 +12,9 @@ on:
       github_email:
         description: 'GitHub User Email'
         required: true
-      vars_file:
+      topology_info:
         description: |
-          For more information, see the [example vars file](https://github.com/GomathiselviS/myutilities/blob/main/tools/generate_aap_cicd_topology_doc/vars/main.yaml).
+          For more information, see the [topolofy info file](https://github.com/GomathiselviS/myutilities/blob/main/tools/generate_aap_cicd_topology_doc/files/info.yaml).
         required: true
 
 jobs:
@@ -42,9 +42,8 @@ jobs:
 
     - name: Run Ansible Role to Create PR
       run: |
-        ansible-playbook -i "localhost" "${{ steps.set_playbook_filename.outputs.playbook_filename }}" -e "github_token='${{ github.event.inputs.github_token }}' github_user='${{ github.event.inputs.github_user }}' github_email='${{ github.event.inputs.github_email }}'" -vvv
+        ansible-playbook -i "localhost" "${{ steps.set_playbook_filename.outputs.playbook_filename }}" -e "topology_info='${{ github.event.inputs.topology_info}}' github_token='${{ github.event.inputs.github_token }}' github_user='${{ github.event.inputs.github_user }}' github_email='${{ github.event.inputs.github_email }}'" -vvv
       env:
         GIT_USER_NAME: ${{ github.event.inputs.github_user }}
         GIT_USER_EMAIL: ${{ github.event.inputs.github_email }}
         GITHUB_TOKEN: ${{ github.event.inputs.github_token }}
-        vars_file: ${{ github.event.inputs.vars_file }}
