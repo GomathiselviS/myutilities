@@ -13,7 +13,11 @@
     redis_type: "{{ topology_item.vm_info.redis_type | default('NA') }}"
     redis_cache: "{{ topology_item.vm_info.redis_cache | default('NA') }}"
 
+- name: Get the current working directory
+  command: pwd
+  register: current_dir
+
 - name: Generate topology markdown file
   ansible.builtin.template:
     src: topology.md.j2
-    dest: "{{ handbook_dir + topo_file }}"
+    dest: " {{ current_dir.stdout }}/{{ topo_file }}"
