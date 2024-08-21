@@ -24,6 +24,22 @@
   loop_control:
     loop_var: topology_item
 
+- name: status
+  ansible.builtin.command:
+    cmd: "git status"
+  register: output
+
+- debug:
+    var: output
+
+- name: ls
+  ansible.builtin.command:
+    cmd: "ls"
+  register: output
+
+- debug:
+    var: output
+
 - name: Add files to the branch
   ansible.builtin.command:
     cmd: "git add ."
