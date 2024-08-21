@@ -63,6 +63,7 @@
     return_content: yes
   register: result
   when: status.stdout != ''
+  failed_when: result.status != 201
 
 - debug:
     msg: "PR created successfully with URL: {{ result.json.html_url }}"
