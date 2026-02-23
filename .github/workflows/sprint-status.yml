@@ -13,14 +13,16 @@ jobs:
       - name: Fetch and Analyze Jira Data
         id: jira_data
         run: |
+          # Use your PAT directly as a Bearer token
+          TOKEN="${{ secrets.JIRA_API_TOKEN }}"
+          BASE_URL="https://issues.redhat.com"
           BOARD_ID="20622"
-          AUTH=$(echo -n "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" | base64)
 
           # DEBUG: Check if we can even reach Jira
           echo "Testing connection to ${{ secrets.JIRA_BASE_URL }}..."          
           # --- 1. CURRENT SPRINT PROGRESS ---
-          SPRINT_INFO=$(curl -s -H "Authorization: Basic $AUTH" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
+          SPRINT_INFO=$(curl -f -s -H "Authorization: Bearer $TOKEN" \
+            "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
           
           SPRINT_NAME=$(echo $SPRINT_INFO | jq -r '.values[0].name')
           SPRINT_ID=$(echo $SPRINT_INFO | jq -r '.values[0].id')
