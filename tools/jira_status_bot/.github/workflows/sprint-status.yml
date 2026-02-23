@@ -1,0 +1,106 @@
+name: Jira Sprint Dashboard
+
+on:
+  schedule:
+    # 21:00 UTC is 1:00 PM PST
+    - cron: '0 21 * * 1'
+  workflow_dispatch: 
+
+jobs:
+  sprint-report:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch and Analyze Jira Data
+        id: jira_data
+        run: |
+          BOARD_ID="20622"
+          AUTH=$(echo -n "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" | base64)
+          
+          # --- 1. CURRENT SPRINT PROGRESS ---
+          SPRINT_INFO=$(curl -s -H "Authorization: Basic $AUTH" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
+          
+          SPRINT_NAME=$(echo $SPRINT_INFO | jq -r '.values[0].name')
+          SPRINT_ID=$(echo $SPRINT_INFO | jq -r '.values[0].id')
+          SPRINT_GOAL=$(echo $SPRINT_INFO | jq -r '.values[0].goal // "No goal set"')
+
+          # Get issues for current progress percentage
+          ISSUES_RES=$(curl -s -H "Authorization: Basic $AUTH" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status")
+          
+          TOTAL=$(echo $ISSUES_RES | jq '.total')
+          DONE=$(echo $ISSUES_RES | jq '[.issues[] | select(.fields.status.name == "Done" or .fields.status.name == "Closed")] | length')
+          
+          # Calculate Percentage
+          PERCENT=0
+          if [ "$TOTAL" -gt 0 ]; then PERCENT=$(( 100 * DONE / TOTAL )); fi
+
+          # --- 2. CURRENT ACTIVE EPICS ---
+          EPICS=$(curl -s -H "Authorization: Basic $AUTH" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/search?jql=issuetype=Epic AND sprint=$SPRINT_ID" | jq -r '.issues[].fields.summary' | paste -sd ", " -)
+          [ -z "$EPICS" ] && EPICS="None linked to sprint"
+
+          # --- 3. LAST SPRINT RETROSPECTIVE ---
+          PAST_SPRINT=$(curl -s -H "Authorization: Basic $AUTH" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed" | jq -r '.values[-1]')
+          PAST_ID=$(echo $PAST_SPRINT | jq -r '.id')
+          PAST_NAME=$(echo $PAST_SPRINT | jq -r '.name')
+
+          # Completed counts from last sprint
+          DONE_LAST=$(curl -s -H "Authorization: Basic $AUTH" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/search?jql=sprint=$PAST_ID AND status=Done" | jq -r '.total')
+          EPICS_DONE_LAST=$(curl -s -H "Authorization: Basic $AUTH" \
+            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/search?jql=issuetype=Epic AND sprint=$PAST_ID AND status=Done" | jq -r '.total')
+
+          # --- OUTPUTS ---
+          echo "curr_name=$SPRINT_NAME" >> $GITHUB_OUTPUT
+          echo "curr_goal=$SPRINT_GOAL" >> $GITHUB_OUTPUT
+          echo "curr_percent=$PERCENT" >> $GITHUB_OUTPUT
+          echo "curr_stats=$DONE / $TOTAL completed" >> $GITHUB_OUTPUT
+          echo "active_epics=$EPICS" >> $GITHUB_OUTPUT
+          echo "past_name=$PAST_NAME" >> $GITHUB_OUTPUT
+          echo "past_done=$DONE_LAST" >> $GITHUB_OUTPUT
+          echo "past_epics=$EPICS_DONE_LAST" >> $GITHUB_OUTPUT
+
+      - name: Post Dashboard to Slack
+        uses: slackapi/slack-github-action@v1.24.0
+        with:
+          payload: |
+            {
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": { "type": "plain_text", "text": "🚀 Weekly Engineering Dashboard" }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Current Sprint:* ${{ steps.jira_data.outputs.curr_name }}\n*Goal:* _${{ steps.jira_data.outputs.curr_goal }}_"
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    { "type": "mrkdwn", "text": "*Progress:*\n${{ steps.jira_data.outputs.curr_percent }}% (${{ steps.jira_data.outputs.curr_stats }})" },
+                    { "type": "mrkdwn", "text": "*Active Epics:*\n`${{ steps.jira_data.outputs.active_epics }}`" }
+                  ]
+                },
+                { "type": "divider" },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*⏮ Last Sprint Recap (${{ steps.jira_data.outputs.past_name }})*"
+                  }
+                },
+                {
+                  "type": "context",
+                  "elements": [
+                    { "type": "mrkdwn", "text": "✅ *Tickets:* ${{ steps.jira_data.outputs.past_done }} | 🏆 *Epics:* ${{ steps.jira_data.outputs.past_epics }} | 🕒 Generated: 1PM PST" }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
