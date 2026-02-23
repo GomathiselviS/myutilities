@@ -15,7 +15,9 @@ jobs:
         run: |
           BOARD_ID="20622"
           AUTH=$(echo -n "${{ secrets.JIRA_USER_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}" | base64)
-          
+
+          # DEBUG: Check if we can even reach Jira
+          echo "Testing connection to ${{ secrets.JIRA_BASE_URL }}..."          
           # --- 1. CURRENT SPRINT PROGRESS ---
           SPRINT_INFO=$(curl -s -H "Authorization: Basic $AUTH" \
             "${{ secrets.JIRA_BASE_URL }}/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
@@ -23,6 +25,9 @@ jobs:
           SPRINT_NAME=$(echo $SPRINT_INFO | jq -r '.values[0].name')
           SPRINT_ID=$(echo $SPRINT_INFO | jq -r '.values[0].id')
           SPRINT_GOAL=$(echo $SPRINT_INFO | jq -r '.values[0].goal // "No goal set"')
+
+          # DEBUG: Check if we can even reach Jira
+          echo "Found Active Sprint: $SPRINT_NAME (ID: $SPRINT_ID)"
 
           # Get issues for current progress percentage
           ISSUES_RES=$(curl -s -H "Authorization: Basic $AUTH" \
@@ -46,6 +51,8 @@ jobs:
           PAST_ID=$(echo $PAST_SPRINT | jq -r '.id')
           PAST_NAME=$(echo $PAST_SPRINT | jq -r '.name')
 
+          # DEBUG: Check if we can even reach Jira
+          echo "Found PAST Sprint: $SPRINT_NAME (ID: $PAST_SPRINT)"
           # Completed counts from last sprint
           DONE_LAST=$(curl -s -H "Authorization: Basic $AUTH" \
             "${{ secrets.JIRA_BASE_URL }}/rest/api/3/search?jql=sprint=$PAST_ID AND status=Done" | jq -r '.total')
