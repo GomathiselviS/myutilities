@@ -75,6 +75,8 @@ jobs:
 
       - name: Create Slack Payload File
         run: |
+          # Use single quotes for the heredoc delimiter to prevent shell expansion
+          # but we need the variables to expand, so we use cat with standard heredoc
           cat <<EOF > slack_payload.json
           {
             "text": "Red Hat Jira Sprint Update",
@@ -96,10 +98,23 @@ jobs:
                   { "type": "mrkdwn", "text": "*Progress:*\n${{ steps.jira_data.outputs.curr_percent }}% (${{ steps.jira_data.outputs.curr_stats }})" },
                   { "type": "mrkdwn", "text": "*Active Epics:*\n\`${{ steps.jira_data.outputs.active_epics }}\`" }
                 ]
+              },
+              { "type": "divider" },
+              {
+                "type": "section",
+                "text": { "type": "mrkdwn", "text": "*⏮ Last Sprint Recap: ${{ steps.jira_data.outputs.past_name }}*" }
+              },
+              {
+                "type": "context",
+                "elements": [
+                  { "type": "mrkdwn", "text": "✅ *Tickets:* ${{ steps.jira_data.outputs.past_done }} | 🏆 *Epics:* ${{ steps.jira_data.outputs.past_epics }} | 🕒 1PM PST" }
+                ]
               }
             ]
           }
           EOF
+
+      - run: cat slack_payload.json
 
       - name: Post to Slack
         uses: slackapi/slack-github-action@v1.24.0
