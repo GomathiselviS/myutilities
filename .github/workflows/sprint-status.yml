@@ -73,61 +73,37 @@ jobs:
           echo "past_done=$DONE_LAST" >> $GITHUB_OUTPUT
           echo "past_epics=$EPICS_DONE_LAST" >> $GITHUB_OUTPUT
 
-      - name: Post Dashboard to Slack
+      - name: Create Slack Payload File
+        run: |
+          cat <<EOF > slack_payload.json
+          {
+            "text": "Red Hat Jira Sprint Update",
+            "blocks": [
+              {
+                "type": "header",
+                "text": { "type": "plain_text", "text": "🚀 Red Hat Jira Sprint Dashboard" }
+              },
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": "*Active Sprint:* ${{ steps.jira_data.outputs.curr_name }}\n*Goal:* _${{ steps.jira_data.outputs.curr_goal }}_"
+                }
+              },
+              {
+                "type": "section",
+                "fields": [
+                  { "type": "mrkdwn", "text": "*Progress:*\n${{ steps.jira_data.outputs.curr_percent }}% (${{ steps.jira_data.outputs.curr_stats }})" },
+                  { "type": "mrkdwn", "text": "*Active Epics:*\n\`${{ steps.jira_data.outputs.active_epics }}\`" }
+                ]
+              }
+            ]
+          }
+          EOF
+
+      - name: Post to Slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
-          # Use a JSON string directly to prevent dot-notation flattening
-          payload: |
-            {
-              "text": "Red Hat Jira Sprint Update",
-              "blocks": [
-                {
-                  "type": "header",
-                  "text": {
-                    "type": "plain_text",
-                    "text": "🚀 Red Hat Jira Sprint Dashboard"
-                  }
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*Active Sprint:* ${{ steps.jira_data.outputs.curr_name }}\n*Goal:* _${{ steps.jira_data.outputs.curr_goal }}_"
-                  }
-                },
-                {
-                  "type": "section",
-                  "fields": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Progress:*\n${{ steps.jira_data.outputs.curr_percent }}% (${{ steps.jira_data.outputs.curr_stats }})"
-                    },
-                    {
-                      "type": "mrkdwn",
-                      "text": "*Active Epics:*\n`${{ steps.jira_data.outputs.active_epics }}`"
-                    }
-                  ]
-                },
-                {
-                  "type": "divider"
-                },
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*⏮ Last Sprint Recap: ${{ steps.jira_data.outputs.past_name }}*"
-                  }
-                },
-                {
-                  "type": "context",
-                  "elements": [
-                    {
-                      "type": "mrkdwn",
-                      "text": "✅ *Tickets:* ${{ steps.jira_data.outputs.past_done }} | 🏆 *Epics:* ${{ steps.jira_data.outputs.past_epics }} | 🕒 Generated: 1PM PST"
-                    }
-                  ]
-                }
-              ]
-            }
+          payload-file-path: "./slack_payload.json"
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
