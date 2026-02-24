@@ -1,91 +1,101 @@
-name: Red Hat Jira Sprint Dashboard
+name: Red Hat Jira Ultimate Sprint Dashboard
 
 on:
   schedule:
-    - cron: '0 21 * * 1' 
+    - cron: '0 21 * * 1' # 1:00 PM PST Mondays
   workflow_dispatch: 
 
 jobs:
   sprint-report:
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch Jira Data
+      - name: Fetch and Analyze Jira Data
         id: jira_data
         run: |
-          # Variables
           BOARD_ID="20622"
           BASE_URL="https://issues.redhat.com"
           TOKEN="${{ secrets.JIRA_API_TOKEN }}"
           
-          # Fetch Data
-          SPRINT_INFO=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
-          SPRINT_NAME=$(echo $SPRINT_INFO | jq -r '.values[0].name // "Unknown"')
+          # --- 1. CURRENT SPRINT METRICS & TICKETS ---
+          SPRINT_INFO=$(curl -s -f -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
           SPRINT_ID=$(echo $SPRINT_INFO | jq -r '.values[0].id')
+          SPRINT_NAME=$(echo $SPRINT_INFO | jq -r '.values[0].name')
           SPRINT_GOAL=$(echo $SPRINT_INFO | jq -r '.values[0].goal // "No goal set"')
 
-          ISSUES_RES=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status")
-          TOTAL=$(echo $ISSUES_RES | jq '.total // 0')
-          DONE=$(echo $ISSUES_RES | jq '[.issues[] | select(.fields.status.name == "Done" or .fields.status.name == "Closed" or .fields.status.name == "Resolved")] | length')
+          ISSUES_JSON=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status,summary,issuetype")
+          
+          # Requirement 2: Done Percentage
+          TOTAL=$(echo $ISSUES_JSON | jq '.total // 0')
+          DONE_COUNT=$(echo $ISSUES_JSON | jq '[.issues[] | select(.fields.status.name == "Done" or .fields.status.name == "Closed" or .fields.status.name == "Release Pending")] | length')
           PERCENT=0
-          if [ "$TOTAL" -gt 0 ]; then PERCENT=$(( 100 * DONE / TOTAL )); fi
+          if [ "$TOTAL" -gt 0 ]; then PERCENT=$(( 100 * DONE_COUNT / TOTAL )); fi
 
-          EPICS=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/api/2/search?jql=issuetype=Epic AND sprint=$SPRINT_ID" | jq -r '.issues[].fields.summary' | paste -sd ", " -)
-          [ -z "$EPICS" ] && EPICS="None linked"
+          # Requirement 1: Tickets In Progress / Review
+          ACTIVE_TICKETS=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name != "Epic") | select(.fields.status.name == "In Progress" or .fields.status.name == "In Review") | "• \(.key): \(.fields.summary)"' | head -n 10 | paste -sd "\\n" -)
+          [ -z "$ACTIVE_TICKETS" ] && ACTIVE_TICKETS="None"
 
-          # Past Sprint with "0" defaults to prevent empty strings
+          # Requirement 1: Epics In Progress / Review
+          ACTIVE_EPICS=$(curl -s -H "Authorization: Bearer $TOKEN" --data-urlencode "jql=issuetype = Epic AND status in ('In Progress', 'In Review') AND (sprint = $SPRINT_ID OR issue in linkedIssuesOf(\"sprint = $SPRINT_ID\"))" "$BASE_URL/rest/api/2/search" | jq -r '.issues[].fields.summary' | sort | uniq | paste -sd ", " -)
+          [ -z "$ACTIVE_EPICS" ] && ACTIVE_EPICS="None"
+
+          # --- 2. PREVIOUS SPRINT RETROSPECTIVE ---
           PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed")
           PAST_NAME=$(echo $PAST_DATA | jq -r '.values[-1].name // "N/A"')
           PAST_ID=$(echo $PAST_DATA | jq -r '.values[-1].id // ""')
           
-          DONE_LAST="0"; EPICS_LAST="0"
+          # Requirement 3: Completed Tickets & Epics from Previous
+          PAST_TICKETS="None"
+          PAST_EPIC_LIST="None"
           if [ -n "$PAST_ID" ]; then
-             DONE_LAST=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/api/2/search?jql=sprint=$PAST_ID AND status in (Done, Closed, Resolved)" | jq -r '.total // 0')
-             EPICS_LAST=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/api/2/search?jql=issuetype=Epic AND sprint=$PAST_ID AND status in (Done, Closed, Resolved)" | jq -r '.total // 0')
+             PAST_TICKETS=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/api/2/search?jql=sprint=$PAST_ID AND issuetype != Epic AND status in (Done, Closed, 'Release Pending')" | jq -r '.issues[] | "• \(.key): \(.fields.summary)"' | head -n 10 | paste -sd "\\n" -)
+             PAST_EPIC_LIST=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/api/2/search?jql=sprint=$PAST_ID AND issuetype = Epic AND status in (Done, Closed, 'Release Pending')" | jq -r '.issues[].fields.summary' | sort | uniq | paste -sd ", " -)
           fi
 
-          # Export
+          # Exporting everything
           echo "curr_name=$SPRINT_NAME" >> $GITHUB_OUTPUT
           echo "curr_goal=$SPRINT_GOAL" >> $GITHUB_OUTPUT
           echo "curr_percent=$PERCENT" >> $GITHUB_OUTPUT
-          echo "curr_stats=$DONE / $TOTAL tickets" >> $GITHUB_OUTPUT
-          echo "active_epics=$EPICS" >> $GITHUB_OUTPUT
+          echo "curr_stats=$DONE_COUNT / $TOTAL completed" >> $GITHUB_OUTPUT
+          echo "active_tickets=$ACTIVE_TICKETS" >> $GITHUB_OUTPUT
+          echo "active_epics=$ACTIVE_EPICS" >> $GITHUB_OUTPUT
           echo "past_name=$PAST_NAME" >> $GITHUB_OUTPUT
-          echo "past_done=$DONE_LAST" >> $GITHUB_OUTPUT
-          echo "past_epics=$EPICS_LAST" >> $GITHUB_OUTPUT
+          echo "past_tickets=$PAST_TICKETS" >> $GITHUB_OUTPUT
+          echo "past_epics=$PAST_EPIC_LIST" >> $GITHUB_OUTPUT
 
-      - name: Generate and Post Payload
+      - name: Post to Slack
         env:
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK_URL }}
           C_NAME: ${{ steps.jira_data.outputs.curr_name }}
           C_GOAL: ${{ steps.jira_data.outputs.curr_goal }}
           C_PERC: ${{ steps.jira_data.outputs.curr_percent }}
           C_STAT: ${{ steps.jira_data.outputs.curr_stats }}
-          A_EPIC: ${{ steps.jira_data.outputs.active_epics }}
+          A_TICKETS: ${{ steps.jira_data.outputs.active_tickets }}
+          A_EPICS: ${{ steps.jira_data.outputs.active_epics }}
           P_NAME: ${{ steps.jira_data.outputs.past_name }}
-          P_DONE: ${{ steps.jira_data.outputs.past_done }}
-          P_EPIC: ${{ steps.jira_data.outputs.past_epics }}
+          P_TICKETS: ${{ steps.jira_data.outputs.past_tickets }}
+          P_EPICS: ${{ steps.jira_data.outputs.past_epics }}
         run: |
-          # 1. Build JSON with jq (handles all escaping)
           PAYLOAD=$(jq -n \
             --arg cname "$C_NAME" --arg cgoal "$C_GOAL" --arg cperc "$C_PERC" \
-            --arg cstat "$C_STAT" --arg aepic "$A_EPIC" --arg pname "$P_NAME" \
-            --arg pdone "$P_DONE" --arg pepic "$P_EPIC" \
+            --arg cstat "$C_STAT" --arg atix "$A_TICKETS" --arg aepic "$A_EPICS" \
+            --arg pname "$P_NAME" --arg ptix "$P_TICKETS" --arg pepic "$P_EPICS" \
             '{
-              text: "Jira Sprint Update",
+              text: "Jira Sprint Dashboard Update",
               blocks: [
                 {type: "header", text: {type: "plain_text", text: "🚀 Red Hat Jira Sprint Dashboard"}},
-                {type: "section", text: {type: "mrkdwn", text: ("*Active Sprint:* " + $cname + "\n*Goal:* _" + $cgoal + "_")}},
+                {type: "section", text: {type: "mrkdwn", text: "*Current Sprint:* " + $cname + "\n*Goal:* _" + $cgoal + "_"}},
                 {type: "section", fields: [
-                  {type: "mrkdwn", text: ("*Progress:*\n" + $cperc + "% (" + $cstat + ")")},
-                  {type: "mrkdwn", text: ("*Active Epics:*\n`" + $aepic + "`")}
+                  {type: "mrkdwn", text: "*Progress:*\n" + $cperc + "% (" + $cstat + ")"},
+                  {type: "mrkdwn", text: "*Active Epics:*\n`" + $aepic + "`"}
                 ]},
+                {type: "section", text: {type: "mrkdwn", text: "*🛠 Current In Progress / Review:*\n" + $atix}},
                 {type: "divider"},
-                {type: "section", text: {type: "mrkdwn", text: ("*⏮ Last Sprint Recap: " + $pname + "*")}},
-                {type: "context", elements: [
-                  {type: "mrkdwn", text: ("✅ *Tickets:* " + $pdone + " | 🏆 *Epics:* " + $pepic + " | 🕒 1PM PST")}
-                ]}
+                {type: "section", text: {type: "mrkdwn", text: "*⏮ Last Sprint Recap (" + $pname + ")*"}},
+                {type: "section", fields: [
+                  {type: "mrkdwn", text: "*Completed Tickets:*\n" + $ptix},
+                  {type: "mrkdwn", text: "*Completed Epics:*\n`" + $pepic + "`"}
+                ]},
+                {type: "context", elements: [{type: "mrkdwn", text: "🕒 Data from issues.redhat.com | Statuses: Done, Closed, Release Pending"}]}
               ]
             }')
-
-          # 2. Post directly to Slack via curl
           curl -X POST -H 'Content-type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK"
