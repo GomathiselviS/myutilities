@@ -76,12 +76,17 @@ jobs:
       - name: Post Dashboard to Slack
         uses: slackapi/slack-github-action@v1.24.0
         with:
+          # Use a JSON string directly to prevent dot-notation flattening
           payload: |
             {
+              "text": "Red Hat Jira Sprint Update",
               "blocks": [
                 {
                   "type": "header",
-                  "text": { "type": "plain_text", "text": "🚀 Red Hat Jira Sprint Dashboard" }
+                  "text": {
+                    "type": "plain_text",
+                    "text": "🚀 Red Hat Jira Sprint Dashboard"
+                  }
                 },
                 {
                   "type": "section",
@@ -93,11 +98,19 @@ jobs:
                 {
                   "type": "section",
                   "fields": [
-                    { "type": "mrkdwn", "text": "*Progress:*\n${{ steps.jira_data.outputs.curr_percent }}% (${{ steps.jira_data.outputs.curr_stats }})" },
-                    { "type": "mrkdwn", "text": "*Active Epics:*\n`${{ steps.jira_data.outputs.active_epics }}`" }
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Progress:*\n${{ steps.jira_data.outputs.curr_percent }}% (${{ steps.jira_data.outputs.curr_stats }})"
+                    },
+                    {
+                      "type": "mrkdwn",
+                      "text": "*Active Epics:*\n`${{ steps.jira_data.outputs.active_epics }}`"
+                    }
                   ]
                 },
-                { "type": "divider" },
+                {
+                  "type": "divider"
+                },
                 {
                   "type": "section",
                   "text": {
@@ -108,7 +121,10 @@ jobs:
                 {
                   "type": "context",
                   "elements": [
-                    { "type": "mrkdwn", "text": "✅ *Tickets:* ${{ steps.jira_data.outputs.past_done }} | 🏆 *Epics:* ${{ steps.jira_data.outputs.past_epics }} | 🕒 Generated: 1PM PST" }
+                    {
+                      "type": "mrkdwn",
+                      "text": "✅ *Tickets:* ${{ steps.jira_data.outputs.past_done }} | 🏆 *Epics:* ${{ steps.jira_data.outputs.past_epics }} | 🕒 Generated: 1PM PST"
+                    }
                   ]
                 }
               ]
