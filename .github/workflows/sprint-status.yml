@@ -79,7 +79,6 @@ jobs:
           # but we need the variables to expand, so we use cat with standard heredoc
           cat <<EOF > slack_payload.json
           {
-            "text": "Red Hat Jira Sprint Update",
             "blocks": [
               {
                 "type": "header",
