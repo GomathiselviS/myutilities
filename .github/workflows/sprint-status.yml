@@ -74,44 +74,43 @@ jobs:
           echo "past_epics=$EPICS_DONE_LAST" >> $GITHUB_OUTPUT
 
       - name: Create Slack Payload File
+        env:
+          # Map GitHub outputs to Env Vars to handle special characters safely
+          CURR_NAME: ${{ steps.jira_data.outputs.curr_name }}
+          CURR_GOAL: ${{ steps.jira_data.outputs.curr_goal }}
+          CURR_PERCENT: ${{ steps.jira_data.outputs.curr_percent }}
+          CURR_STATS: ${{ steps.jira_data.outputs.curr_stats }}
+          ACTIVE_EPICS: ${{ steps.jira_data.outputs.active_epics }}
+          PAST_NAME: ${{ steps.jira_data.outputs.past_name }}
+          PAST_DONE: ${{ steps.jira_data.outputs.past_done }}
+          PAST_EPICS: ${{ steps.jira_data.outputs.past_epics }}
         run: |
-          # Use single quotes for the heredoc delimiter to prevent shell expansion
-          # but we need the variables to expand, so we use cat with standard heredoc
-          cat <<EOF > slack_payload.json
-          {
-            "blocks": [
-              {
-                "type": "header",
-                "text": { "type": "plain_text", "text": "🚀 Red Hat Jira Sprint Dashboard" }
-              },
-              {
-                "type": "section",
-                "text": {
-                  "type": "mrkdwn",
-                  "text": "*Active Sprint:* ${{ steps.jira_data.outputs.curr_name }}\n*Goal:* _${{ steps.jira_data.outputs.curr_goal }}_"
-                }
-              },
-              {
-                "type": "section",
-                "fields": [
-                  { "type": "mrkdwn", "text": "*Progress:*\n${{ steps.jira_data.outputs.curr_percent }}% (${{ steps.jira_data.outputs.curr_stats }})" },
-                  { "type": "mrkdwn", "text": "*Active Epics:*\n\`${{ steps.jira_data.outputs.active_epics }}\`" }
-                ]
-              },
-              { "type": "divider" },
-              {
-                "type": "section",
-                "text": { "type": "mrkdwn", "text": "*⏮ Last Sprint Recap: ${{ steps.jira_data.outputs.past_name }}*" }
-              },
-              {
-                "type": "context",
-                "elements": [
-                  { "type": "mrkdwn", "text": "✅ *Tickets:* ${{ steps.jira_data.outputs.past_done }} | 🏆 *Epics:* ${{ steps.jira_data.outputs.past_epics }} | 🕒 1PM PST" }
-                ]
-              }
-            ]
-          }
-          EOF
+          jq -n \
+            --arg text "Red Hat Jira Sprint Update" \
+            --arg cname "$CURR_NAME" \
+            --arg cgoal "$CURR_GOAL" \
+            --arg cperc "$CURR_PERCENT" \
+            --arg cstat "$CURR_STATS" \
+            --arg aepic "$ACTIVE_EPICS" \
+            --arg pname "$PAST_NAME" \
+            --arg pdone "$PAST_DONE" \
+            --arg pepic "$PAST_EPICS" \
+            '{
+              text: $text,
+              blocks: [
+                {type: "header", text: {type: "plain_text", text: "🚀 Red Hat Jira Sprint Dashboard"}},
+                {type: "section", text: {type: "mrkdwn", text: ("*Active Sprint:* " + $cname + "\n*Goal:* _" + $cgoal + "_")}},
+                {type: "section", fields: [
+                  {type: "mrkdwn", text: ("*Progress:*\n" + $cperc + "% (" + $cstat + ")")},
+                  {type: "mrkdwn", text: ("*Active Epics:*\n`" + $aepic + "`")}
+                ]},
+                {type: "divider"},
+                {type: "section", text: {type: "mrkdwn", text: ("*⏮ Last Sprint Recap: " + $pname + "*")}},
+                {type: "context", elements: [
+                  {type: "mrkdwn", text: ("✅ *Tickets:* " + $pdone + " | 🏆 *Epics:* " + $pepic + " | 🕒 1PM PST")}
+                ]}
+              ]
+            }' > slack_payload.json
 
       - run: cat slack_payload.json
 
