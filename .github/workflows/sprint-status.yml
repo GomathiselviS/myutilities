@@ -88,6 +88,7 @@ jobs:
           P_TICKETS: ${{ steps.jira_data.outputs.past_tickets }}
           P_EPICS: ${{ steps.jira_data.outputs.past_epics }}
         run: |
+          # We use jq string interpolation \($var) which is safer than "+"
           PAYLOAD=$(jq -n \
             --arg cname "$C_NAME" --arg cgoal "$C_GOAL" --arg cperc "$C_PERC" \
             --arg cstat "$C_STAT" --arg atix "$A_TICKETS" --arg aepic "$A_EPICS" \
@@ -95,20 +96,41 @@ jobs:
             '{
               text: "Jira Sprint Dashboard Update",
               blocks: [
-                {type: "header", text: {type: "plain_text", text: "🚀 Red Hat Jira Sprint Dashboard"}},
-                {type: "section", text: {type: "mrkdwn", text: "*Current Sprint:* " + $cname + "\n*Goal:* _" + $cgoal + "_"}},
-                {type: "section", fields: [
-                  {type: "mrkdwn", text: "*Progress:*\n" + $cperc + "% (" + $cstat + ")"},
-                  {type: "mrkdwn", text: "*Active Epics:*\n`" + $aepic + "`"}
-                ]},
-                {type: "section", text: {type: "mrkdwn", text: "*🛠 Current In Progress / Review:*\n" + $atix}},
-                {type: "divider"},
-                {type: "section", text: {type: "mrkdwn", text: "*⏮ Last Sprint Recap (" + $pname + ")*"}},
-                {type: "section", fields: [
-                  {type: "mrkdwn", text: "*Completed Tickets:*\n" + $ptix},
-                  {type: "mrkdwn", text: "*Completed Epics:*\n`" + $pepic + "`"}
-                ]},
-                {type: "context", elements: [{type: "mrkdwn", text: "🕒 Data from issues.redhat.com | Statuses: Done, Closed, Release Pending"}]}
+                {
+                  "type": "header", 
+                  "text": {"type": "plain_text", "text": "🚀 Red Hat Jira Sprint Dashboard"}
+                },
+                {
+                  "type": "section", 
+                  "text": {"type": "mrkdwn", "text": "*Current Sprint:* \($cname)\n*Goal:* _\($cgoal)_"}
+                },
+                {
+                  "type": "section", 
+                  "fields": [
+                    {"type": "mrkdwn", "text": "*Progress:*\n\($cperc)% (\($cstat))"},
+                    {"type": "mrkdwn", "text": "*Active Epics:*\n`\($aepic)`"}
+                  ]
+                },
+                {
+                  "type": "section", 
+                  "text": {"type": "mrkdwn", "text": "*🛠 Current In Progress / Review:*\n\($atix)"}
+                },
+                {
+                  "type": "divider"
+                },
+                {
+                  "type": "section", 
+                  "text": {"type": "mrkdwn", "text": "*⏮ Last Sprint Recap (\($pname))*\n*Completed Tickets:*\n\($ptix)"}
+                },
+                {
+                  "type": "section",
+                  "text": {"type": "mrkdwn", "text": "*Completed Epics:*\n`\($pepic)`"}
+                },
+                {
+                  "type": "context", 
+                  "elements": [{"type": "mrkdwn", "text": "🕒 Data from issues.redhat.com | Statuses: Done, Closed, Release Pending"}]
+                }
               ]
             }')
+          
           curl -X POST -H 'Content-type: application/json' --data "$PAYLOAD" "$SLACK_WEBHOOK"
