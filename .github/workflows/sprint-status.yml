@@ -1,10 +1,10 @@
-name: Jira Sprint Dashboard
+name: Red Hat Jira Sprint Dashboard
 
 on:
   schedule:
     # 21:00 UTC is 1:00 PM PST
     - cron: '0 21 * * 1'
-  workflow_dispatch: 
+  workflow_dispatch: # Allows manual run for testing
 
 jobs:
   sprint-report:
@@ -13,14 +13,14 @@ jobs:
       - name: Fetch and Analyze Jira Data
         id: jira_data
         run: |
-          # Use your PAT directly as a Bearer token
-          TOKEN="${{ secrets.JIRA_API_TOKEN }}"
-          BASE_URL="https://issues.redhat.com"
           BOARD_ID="20622"
+          BASE_URL="https://issues.redhat.com"
+          TOKEN="${{ secrets.JIRA_API_TOKEN }}"
+          
+          echo "Connecting to $BASE_URL for Board $BOARD_ID..."
 
-          # DEBUG: Check if we can even reach Jira
-          echo "Testing connection to ${{ secrets.JIRA_BASE_URL }}..."          
           # --- 1. CURRENT SPRINT PROGRESS ---
+          # We use -f to fail the step if the token is rejected (401/403)
           SPRINT_INFO=$(curl -f -s -H "Authorization: Bearer $TOKEN" \
             "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
           
@@ -28,44 +28,46 @@ jobs:
           SPRINT_ID=$(echo $SPRINT_INFO | jq -r '.values[0].id')
           SPRINT_GOAL=$(echo $SPRINT_INFO | jq -r '.values[0].goal // "No goal set"')
 
-          # DEBUG: Check if we can even reach Jira
-          echo "Found Active Sprint: $SPRINT_NAME (ID: $SPRINT_ID)"
-
-          # Get issues for current progress percentage
-          ISSUES_RES=$(curl -s -H "Authorization: Basic $AUTH" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status")
+          # Fetch issues in current sprint
+          ISSUES_RES=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "$BASE_URL/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status")
           
           TOTAL=$(echo $ISSUES_RES | jq '.total')
-          DONE=$(echo $ISSUES_RES | jq '[.issues[] | select(.fields.status.name == "Done" or .fields.status.name == "Closed")] | length')
+          DONE=$(echo $ISSUES_RES | jq '[.issues[] | select(.fields.status.name == "Done" or .fields.status.name == "Closed" or .fields.status.name == "Resolved")] | length')
           
           # Calculate Percentage
           PERCENT=0
           if [ "$TOTAL" -gt 0 ]; then PERCENT=$(( 100 * DONE / TOTAL )); fi
 
           # --- 2. CURRENT ACTIVE EPICS ---
-          EPICS=$(curl -s -H "Authorization: Basic $AUTH" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/search?jql=issuetype=Epic AND sprint=$SPRINT_ID" | jq -r '.issues[].fields.summary' | paste -sd ", " -)
+          EPICS=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "$BASE_URL/rest/api/2/search?jql=issuetype=Epic AND sprint=$SPRINT_ID" | jq -r '.issues[].fields.summary' | paste -sd ", " -)
           [ -z "$EPICS" ] && EPICS="None linked to sprint"
 
           # --- 3. LAST SPRINT RETROSPECTIVE ---
-          PAST_SPRINT=$(curl -s -H "Authorization: Basic $AUTH" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed" | jq -r '.values[-1]')
-          PAST_ID=$(echo $PAST_SPRINT | jq -r '.id')
-          PAST_NAME=$(echo $PAST_SPRINT | jq -r '.name')
-
-          # DEBUG: Check if we can even reach Jira
-          echo "Found PAST Sprint: $SPRINT_NAME (ID: $PAST_SPRINT)"
-          # Completed counts from last sprint
-          DONE_LAST=$(curl -s -H "Authorization: Basic $AUTH" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/search?jql=sprint=$PAST_ID AND status=Done" | jq -r '.total')
-          EPICS_DONE_LAST=$(curl -s -H "Authorization: Basic $AUTH" \
-            "${{ secrets.JIRA_BASE_URL }}/rest/api/3/search?jql=issuetype=Epic AND sprint=$PAST_ID AND status=Done" | jq -r '.total')
+          PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" \
+            "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed")
+          
+          PAST_COUNT=$(echo $PAST_DATA | jq -r '.values | length')
+          
+          if [ "$PAST_COUNT" -gt 0 ] && [ "$PAST_COUNT" != "null" ]; then
+            PAST_NAME=$(echo $PAST_DATA | jq -r '.values[-1].name')
+            PAST_ID=$(echo $PAST_DATA | jq -r '.values[-1].id')
+            
+            # Completed counts from last sprint
+            DONE_LAST=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/api/2/search?jql=sprint=$PAST_ID AND status in (Done, Closed, Resolved)" | jq -r '.total')
+            EPICS_DONE_LAST=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/api/2/search?jql=issuetype=Epic AND sprint=$PAST_ID AND status in (Done, Closed, Resolved)" | jq -r '.total')
+          else
+            PAST_NAME="N/A"
+            DONE_LAST=0
+            EPICS_DONE_LAST=0
+          fi
 
           # --- OUTPUTS ---
           echo "curr_name=$SPRINT_NAME" >> $GITHUB_OUTPUT
           echo "curr_goal=$SPRINT_GOAL" >> $GITHUB_OUTPUT
           echo "curr_percent=$PERCENT" >> $GITHUB_OUTPUT
-          echo "curr_stats=$DONE / $TOTAL completed" >> $GITHUB_OUTPUT
+          echo "curr_stats=$DONE / $TOTAL tickets" >> $GITHUB_OUTPUT
           echo "active_epics=$EPICS" >> $GITHUB_OUTPUT
           echo "past_name=$PAST_NAME" >> $GITHUB_OUTPUT
           echo "past_done=$DONE_LAST" >> $GITHUB_OUTPUT
@@ -79,13 +81,13 @@ jobs:
               "blocks": [
                 {
                   "type": "header",
-                  "text": { "type": "plain_text", "text": "🚀 Weekly Engineering Dashboard" }
+                  "text": { "type": "plain_text", "text": "🚀 Red Hat Jira Sprint Dashboard" }
                 },
                 {
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Current Sprint:* ${{ steps.jira_data.outputs.curr_name }}\n*Goal:* _${{ steps.jira_data.outputs.curr_goal }}_"
+                    "text": "*Active Sprint:* ${{ steps.jira_data.outputs.curr_name }}\n*Goal:* _${{ steps.jira_data.outputs.curr_goal }}_"
                   }
                 },
                 {
@@ -100,7 +102,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*⏮ Last Sprint Recap (${{ steps.jira_data.outputs.past_name }})*"
+                    "text": "*⏮ Last Sprint Recap: ${{ steps.jira_data.outputs.past_name }}*"
                   }
                 },
                 {
