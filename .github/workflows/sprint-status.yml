@@ -52,15 +52,28 @@ jobs:
           fi
 
           # Exporting everything
-          echo "curr_name=$SPRINT_NAME" >> $GITHUB_OUTPUT
-          echo "curr_goal=$SPRINT_GOAL" >> $GITHUB_OUTPUT
-          echo "curr_percent=$PERCENT" >> $GITHUB_OUTPUT
-          echo "curr_stats=$DONE_COUNT / $TOTAL completed" >> $GITHUB_OUTPUT
-          echo "active_tickets=$ACTIVE_TICKETS" >> $GITHUB_OUTPUT
-          echo "active_epics=$ACTIVE_EPICS" >> $GITHUB_OUTPUT
-          echo "past_name=$PAST_NAME" >> $GITHUB_OUTPUT
-          echo "past_tickets=$PAST_TICKETS" >> $GITHUB_OUTPUT
-          echo "past_epics=$PAST_EPIC_LIST" >> $GITHUB_OUTPUT
+          # --- SAFELY EXPORT MULTILINE OUTPUTS ---
+          {
+            echo "curr_name=$SPRINT_NAME"
+            echo "curr_goal=$SPRINT_GOAL"
+            echo "curr_percent=$PERCENT"
+            echo "curr_stats=$DONE_COUNT / $TOTAL completed"
+
+            # Use EOF for multiline strings (Active Tickets)
+            echo "active_tickets<<EOF"
+            echo "$ACTIVE_TICKETS"
+            echo "EOF"
+
+            echo "active_epics=$ACTIVE_EPICS"
+            echo "past_name=$PAST_NAME"
+
+            # Use EOF for multiline strings (Past Tickets)
+            echo "past_tickets<<EOF"
+            echo "$PAST_TICKETS"
+            echo "EOF"
+
+            echo "past_epics=$PAST_EPIC_LIST"
+          } >> "$GITHUB_OUTPUT"
 
       - name: Post to Slack
         env:
