@@ -32,18 +32,18 @@ jobs:
 
           # Separate Tickets: In Progress vs In Review
           IN_PROGRESS_TIX=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name != "Epic" and .fields.status.name == "In Progress") | "• \(.key): \(.fields.summary)"' | head -n 5 | paste -sd "\\n" -)
-          IN_REVIEW_TIX=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name != "Epic" and .fields.status.name == "In Review") | "• \(.key): \(.fields.summary)"' | head -n 5 | paste -sd "\\n" -)
+          IN_REVIEW_TIX=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name != "Epic" and .fields.status.name == "Review") | "• \(.key): \(.fields.summary)"' | head -n 5 | paste -sd "\\n" -)
 
           # Separate Epics: In Progress vs In Review (Filtered to only those in the current sprint)
           IP_EPICS=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name == "Epic" and .fields.status.name == "In Progress") | .fields.summary' | sort | uniq | paste -sd ", " -)
-          REV_EPICS=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name == "Epic" and .fields.status.name == "In Review") | .fields.summary' | sort | uniq | paste -sd ", " -)
+          REV_EPICS=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name == "Epic" and .fields.status.name == "Review") | .fields.summary' | sort | uniq | paste -sd ", " -)
 
           # Blocked Tickets (Flagged as Blocked OR has an active 'is blocked by' link)
           BLOCKED=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.status.name == "Blocked" or (.fields.issuelinks[]? | .type.inward == "is blocked by")) | "• \(.key): \(.fields.summary)"' | head -n 5 | paste -sd "\\n" -)
 
           # --- 2. LAST COMPLETED SPRINT ---
           # We sort by completeDate descending to ensure we get the absolute last finished sprint
-          PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed")
+          PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed&maxResults=1")
           PAST_JSON=$(echo $PAST_DATA | jq -r '.values | sort_by(.completeDate) | reverse | .[0]')
           PAST_NAME=$(echo $PAST_JSON | jq -r '.name // "N/A"')
           PAST_ID=$(echo $PAST_JSON | jq -r '.id // ""')
