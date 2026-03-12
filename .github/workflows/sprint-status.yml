@@ -22,7 +22,7 @@ jobs:
           SPRINT_NAME=$(echo $SPRINT_INFO | jq -r '.values[0].name')
 
           # Fetch all issues in sprint (for progress and status sections)
-          ISSUES_JSON=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status,summary,issuetype,issuelinks")
+          ISSUES_JSON=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status,summary,issuetype,issuelinks,parent")
           
           # Done Percentage
           TOTAL=$(echo $ISSUES_JSON | jq '.total // 0')
@@ -34,16 +34,16 @@ jobs:
           IN_PROGRESS_TIX=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name != "Epic" and .fields.status.name == "In Progress") | "• \(.key): \(.fields.summary)"' | head -n 5 | paste -sd "\\n" -)
           IN_REVIEW_TIX=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name != "Epic" and .fields.status.name == "Review") | "• \(.key): \(.fields.summary)"' | head -n 5 | paste -sd "\\n" -)
 
-          # Separate Epics: In Progress vs In Review (Filtered to only those in the current sprint)
-          IP_EPICS=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name == "Epic" and .fields.status.name == "In Progress") | .fields.summary' | sort | uniq | paste -sd ", " -)
-          REV_EPICS=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.issuetype.name == "Epic" and .fields.status.name == "Review") | .fields.summary' | sort | uniq | paste -sd ", " -)
+          # Get Epics that have child stories In Progress or In Review (based on parent field)
+          IP_EPICS=$(echo $ISSUES_JSON | jq -r '[.issues[] | select(.fields.issuetype.name != "Epic" and .fields.status.name == "In Progress" and .fields.parent != null) | .fields.parent.fields.summary] | unique | join(", ")')
+          REV_EPICS=$(echo $ISSUES_JSON | jq -r '[.issues[] | select(.fields.issuetype.name != "Epic" and .fields.status.name == "Review" and .fields.parent != null) | .fields.parent.fields.summary] | unique | join(", ")')
 
           # Blocked Tickets (Flagged as Blocked OR has an active 'is blocked by' link)
           BLOCKED=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.status.name == "Blocked" or (.fields.issuelinks[]? | .type.inward == "is blocked by")) | "• \(.key): \(.fields.summary)"' | head -n 5 | paste -sd "\\n" -)
 
           # --- 2. LAST COMPLETED SPRINT ---
-          # We sort by completeDate descending to ensure we get the absolute last finished sprint
-          PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed&maxResults=1")
+          # Fetch enough closed sprints to sort by completeDate and get the most recently closed one
+          PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed&maxResults=50")
           PAST_JSON=$(echo $PAST_DATA | jq -r '.values | sort_by(.completeDate) | reverse | .[0]')
           PAST_NAME=$(echo $PAST_JSON | jq -r '.name // "N/A"')
           PAST_ID=$(echo $PAST_JSON | jq -r '.id // ""')
