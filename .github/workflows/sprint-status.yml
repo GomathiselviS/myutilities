@@ -12,8 +12,8 @@ jobs:
       - name: Fetch and Analyze Jira Data
         id: jira_data
         run: |
-          BOARD_ID="20622"
-          BASE_URL="https://issues.redhat.com"
+          BOARD_ID="10910"
+          BASE_URL="https://redhat.atlassian.net/"
           TOKEN="${{ secrets.JIRA_API_TOKEN }}"
           
           # --- 1. CURRENT SPRINT DATA ---
@@ -42,9 +42,10 @@ jobs:
           BLOCKED=$(echo $ISSUES_JSON | jq -r '.issues[] | select(.fields.status.name == "Blocked" or (.fields.issuelinks[]? | .type.inward == "is blocked by")) | "• \(.key): \(.fields.summary)"' | head -n 5 | paste -sd "\\n" -)
 
           # --- 2. LAST COMPLETED SPRINT ---
-          # Fetch enough closed sprints to sort by completeDate and get the most recently closed one
-          PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed&maxResults=50")
-          PAST_JSON=$(echo $PAST_DATA | jq -r '.values | sort_by(.completeDate) | reverse | .[0]')
+          # Fetch closed sprints, filter by completeDate before today, sort descending to get most recent
+          TODAY=$(date +%Y-%m-%d)
+          PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed&maxResults=100")
+          PAST_JSON=$(echo $PAST_DATA | jq -r --arg today "$TODAY" '.values | map(select(.completeDate != null and .completeDate <= $today)) | sort_by(.completeDate) | reverse | .[0]')
           PAST_NAME=$(echo $PAST_JSON | jq -r '.name // "N/A"')
           PAST_ID=$(echo $PAST_JSON | jq -r '.id // ""')
           
