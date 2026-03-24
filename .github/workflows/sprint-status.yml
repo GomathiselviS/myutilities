@@ -14,15 +14,16 @@ jobs:
         run: |
           BOARD_ID="10910"
           BASE_URL="https://redhat.atlassian.net/"
+          USER_EMAIL="{{ secrets.JIRA_USER_EMAIL }}"
           TOKEN="${{ secrets.JIRA_API_TOKEN }}"
           
           # --- 1. CURRENT SPRINT DATA ---
-          SPRINT_INFO=$(curl -s -f -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
+          SPRINT_INFO=$(curl -s -f  -u "$USER_EMAIL:$TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=active")
           SPRINT_ID=$(echo $SPRINT_INFO | jq -r '.values[0].id')
           SPRINT_NAME=$(echo $SPRINT_INFO | jq -r '.values[0].name')
 
           # Fetch all issues in sprint (for progress and status sections)
-          ISSUES_JSON=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status,summary,issuetype,issuelinks,parent")
+          ISSUES_JSON=$(curl -s -u "$USER_EMAIL:$TOKEN" "$BASE_URL/rest/agile/1.0/sprint/$SPRINT_ID/issue?fields=status,summary,issuetype,issuelinks,parent")
           
           # Done Percentage
           TOTAL=$(echo $ISSUES_JSON | jq '.total // 0')
@@ -44,14 +45,14 @@ jobs:
           # --- 2. LAST COMPLETED SPRINT ---
           # Fetch closed sprints, filter by completeDate before today, sort descending to get most recent
           TODAY=$(date +%Y-%m-%d)
-          PAST_DATA=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed&maxResults=100")
+          PAST_DATA=$(curl -s -u "$USER_EMAIL:$TOKEN" "$BASE_URL/rest/agile/1.0/board/$BOARD_ID/sprint?state=closed&maxResults=100")
           PAST_JSON=$(echo $PAST_DATA | jq -r --arg today "$TODAY" '.values | map(select(.completeDate != null and .completeDate <= $today)) | sort_by(.completeDate) | reverse | .[0]')
           PAST_NAME=$(echo $PAST_JSON | jq -r '.name // "N/A"')
           PAST_ID=$(echo $PAST_JSON | jq -r '.id // ""')
           
           PAST_TICKETS="None"
           if [ -n "$PAST_ID" ]; then
-             PAST_TICKETS=$(curl -s -H "Authorization: Bearer $TOKEN" "$BASE_URL/rest/api/2/search?jql=sprint=$PAST_ID AND status in (Done, Closed, 'Release Pending') AND issuetype != Epic" | jq -r '.issues[] | "• \(.key): \(.fields.summary)"' | head -n 10 | paste -sd "\\n" -)
+             PAST_TICKETS=$(curl -s -u "$USER_EMAIL:$TOKEN" "$BASE_URL/rest/api/2/search?jql=sprint=$PAST_ID AND status in (Done, Closed, 'Release Pending') AND issuetype != Epic" | jq -r '.issues[] | "• \(.key): \(.fields.summary)"' | head -n 10 | paste -sd "\\n" -)
           fi
 
           # --- EXPORT ---
