@@ -1,0 +1,9 @@
+{
+  "name": "pr-review-analysis",
+  "description": "Pull request review analytics for Jira sprint tickets — tracks review duration, comment resolution, and reviewer engagement",
+  "version": "0.1.0",
+  "author": {
+    "name": "github.com/ansible"
+  },
+  "skills": "./skills/"
+}

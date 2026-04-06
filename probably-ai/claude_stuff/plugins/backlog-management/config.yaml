@@ -1,0 +1,22 @@
+# Backlog Management Configuration
+# Customize these values for your team/project
+
+jira:
+  base_url: "https://redhat.atlassian.net"
+  email: "your-email@example.com"
+
+# JQL query to fetch epics from the backlog
+epic_jql: |
+  Workstream = "Cloud Content"
+  AND Project in (AAP, ACA)
+  AND issuetype = Epic
+  AND status in (New, Backlog)
+  ORDER BY Rank
+
+# JQL query to find backlog tickets (used for ranking anchor)
+backlog_jql: |
+  Workstream = "Cloud Content"
+  AND Project in (AAP, ACA)
+  AND Sprint is EMPTY
+  AND status in (New, Backlog)
+  ORDER BY Rank

@@ -1,0 +1,32 @@
+{
+  "name": "ansible-mgr-ai",
+  "owner": {
+    "name": "ansible"
+  },
+  "plugins": [
+    {
+      "name": "compliance",
+      "source": "./plugins/compliance",
+      "description": "Red Hat AI policy compliance checking and contribution gating for Ansible engineering managers",
+      "version": "0.1.0"
+    },
+    {
+      "name": "process-analysis",
+      "source": "./plugins/process-analysis",
+      "description": "Business process AI-nativeness evaluation and modernization recommendations for Ansible engineering managers",
+      "version": "0.1.0"
+    },
+    {
+      "name": "pr-review-analysis",
+      "source": "./plugins/pr-review-analysis",
+      "description": "Pull request review analytics for Jira sprint tickets — tracks review duration, comment resolution, and reviewer engagement",
+      "version": "0.1.0"
+    },
+    {
+      "name": "backlog-management",
+      "source": "./plugins/backlog-management",
+      "description": "Jira backlog prioritization and epic management tools",
+      "version": "0.1.0"
+    }
+  ]
+}
